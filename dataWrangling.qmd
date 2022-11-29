@@ -1,0 +1,21 @@
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+data <- read.csv("absenteeismData.csv") %>% 
+  filter(Grade == "All Grades" & Year =='2020-21')
+```
+
+```{r}
+data2 <- read.csv("demographicData.csv") %>% 
+  filter(Year =='2020-21')
+```
+
+```{r}
+joined_data <- data %>%
+  left_join(data2, by="DBN", suffix=c("",".y")) %>%
+  select(-ends_with(".y"))
+```
+
