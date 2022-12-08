@@ -20,7 +20,6 @@ joined_data <- data %>%
 ```
 
 
-
 #Binary Poverty Level Variable
 ```{r}
 cat <- joined_data %>% 
@@ -32,4 +31,31 @@ cat <- joined_data %>%
 joined_data$X..Chronically.Absent.1 <- as.numeric(as.character(joined_data$X..Chronically.Absent.1))
 
 ```
+
+
+```{r}
+joined_data <- na.omit(joined_data)
+```
+
+```{r}
+joined_data$X..Poverty.1[joined_data$X..Poverty.1 == 'Above 95%'] <- '95'
+```
+
+```{r}
+joined_data$X..Poverty.1 <- gsub("%", "", joined_data$X..Poverty.1)
+```
+
+```{r}
+joined_data$X..Poverty.1 = as.numeric(as.character(joined_data$X..Poverty.1))
+joined_data$X..Chronically.Absent.1 = as.numeric(as.character(joined_data$X..Chronically.Absent.1))
+```
+
+
+````{r}
+ggplot(data = joined_data, mapping = aes(x = X..Poverty.1, y = X..Chronically.Absent.1)) +
+  geom_point() +
+  labs(title = "Students Living in Poverty vs Students Chronically Absent", subtitle = "In NYC schools", x ="Poverty (%)", y ="Chronically Absent (%)")
+```
+
+
 

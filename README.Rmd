@@ -1,1 +1,7 @@
-What is UP?
+Data is from
+
+[NYC Open Data - 2016-17 - 2020-21 School End-of-Year Attendance and Chronic Absenteeism Data](https://data.cityofnewyork.us/Education/2016-17-2020-21-School-End-of-Year-Attendance-and-/gqq2-hgxd)
+
+and 
+
+[NYC Open Data - 2017-18 - 2021-22 Demographic Snapshot](https://data.cityofnewyork.us/Education/2017-18-2021-22-Demographic-Snapshot/c7ru-d68s)
