@@ -25,6 +25,20 @@ joined_data <- data %>%
   select(-ends_with(".y"))
 ```
 
+
+#Binary Poverty Level Variable
+```{r}
+cat <- joined_data %>% 
+  mutate(Poverty = case_when(X..Poverty.1 == "Above 95%" ~ "Above 95%",
+                             X..Poverty.1 != "Above 95%" ~ "Below 95%"))
+```
+
+```{r}
+joined_data$X..Chronically.Absent.1 <- as.numeric(as.character(joined_data$X..Chronically.Absent.1))
+
+```
+
+
 ```{r}
 # remove all rows that have any N/A values from the new data frames
 joined_data <- na.omit(joined_data)
