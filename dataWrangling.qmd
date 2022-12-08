@@ -1,7 +1,13 @@
 
 ```{r}
 library(tidyverse)
+library(Stat2Data)
+library(performance)
+library(GGally)
+library(car)
 ```
+
+# Upload dataframes and combine them by the "DBN" variable
 
 ```{r}
 data <- read.csv("absenteeismData.csv") %>% 
@@ -20,28 +26,162 @@ joined_data <- data %>%
 ```
 
 ```{r}
+# remove all rows that have any N/A values from the new data frames
 joined_data <- na.omit(joined_data)
 ```
 
+
+# Modify the new (joined) data frame
+
 ```{r}
-joined_data$X..Poverty.1[joined_data$X..Poverty.1 == 'Above 95%'] <- '95'
+# rename variables of the columns we are interested in for our models
+joined_data <- joined_data %>% rename("Chronically.Absent" = "X..Chronically.Absent.1",
+                                         "Poverty" = "X..Poverty.1",
+                                         "English.Language.Learners" = "X..English.Language.Learners.1",
+                                       "Students.with.Disabilities" = "X..Students.with.Disabilities.1")
+```
+
+
+```{r}
+# rename every row value that says 'Above 95%' <- '95'
+joined_data$Poverty[joined_data$Poverty == 'Above 95%'] <- '95'
 ```
 
 ```{r}
-joined_data$X..Poverty.1 <- gsub("%", "", joined_data$X..Poverty.1)
+# replace the % sign from every row so we are left with just a number
+joined_data$Poverty <- gsub("%", "", joined_data$Poverty)
 ```
 
 ```{r}
-joined_data$X..Poverty.1 = as.numeric(as.character(joined_data$X..Poverty.1))
-joined_data$X..Chronically.Absent.1 = as.numeric(as.character(joined_data$X..Chronically.Absent.1))
+# change the data type from char to num for two columns
+joined_data$Poverty = as.numeric(as.character(joined_data$Poverty))
+joined_data$Chronically.Absent = as.numeric(as.character(joined_data$Chronically.Absent))
 ```
 
+
+```{r}
+# change 'Chronically.Absent' and 'Poverty' to the same percentage format (0.50 vs 50)
+# divide columns by 100 and replace values
+joined_data <- joined_data %>% 
+   mutate(Poverty = Poverty / 100) %>% 
+   mutate(Chronically.Absent = Chronically.Absent / 100)
+```
+
+
+
+# Initial data exploration
 
 ````{r}
-ggplot(data = joined_data, mapping = aes(x = X..Poverty.1, y = X..Chronically.Absent.1)) +
+ggplot(data = joined_data, mapping = aes(x = Poverty, y = Chronically.Absent)) +
   geom_point() +
+  geom_smooth(method = lm, se=FALSE, formula = y~x) +
   labs(title = "Students Living in Poverty vs Students Chronically Absent", subtitle = "In NYC schools", x ="Poverty (%)", y ="Chronically Absent (%)")
 ```
 
 
+```{r}
+absent_model <- lm(Chronically.Absent ~ Poverty, data = joined_data)
+summary(absent_model)$coefficients
+```
+
+# Adding more coefficients
+
+- First I want to report the regression table using all of the numerical explanatory variables. Then I will remove any variables that have a p-value greater than 0.05.
+
+```{r}
+absent_model2 <- lm(Chronically.Absent ~ Poverty + English.Language.Learners + Students.with.Disabilities, data = joined_data)
+summary(absent_model2)$coefficients
+```
+
+- All of them have p-values < 0.05 so we can keep all of these variables for now.
+
+# Checking for multicollinearity
+
+- Multicollinearity is when one or more of the explanatory variables is strongly correlated with some combination of the other explanatory variables in the model. Multicollinearity then causes uncertainty about each coefficients value from sample to sample to increase. This then reduces the power of inference procedures, such as t-tests, to detect true relationships.
+
+
+```{r}
+vif(absent_model2)
+```
+
+- Generally a VIF values > 10 are  a sign of danger, while VIF values > 5 are a sign  of caution. Here we see that the VIF values for all variables are below 5 therefore we are not concerned about this degree of multicollinearity.
+
+# Comparing our additive models
+
+- Afterwards, we created various models by removing variables (reducing the complexity) in order to later compare the models. 
+
+```{r}
+absent_model_3var <- lm(Chronically.Absent ~ Poverty + English.Language.Learners + Students.with.Disabilities, data = joined_data)
+absent_model_2var <- lm(Chronically.Absent ~ Poverty + English.Language.Learners, data = joined_data)
+```
+
+- Now, we can use the nested F-test to compare the goodness of fit between all of the models. 
+
+```{r}
+anova(absent_model_2var, absent_model_3var)
+```
+
+- The results indicate we should prefer absent_model_3var as the best balance of goodness of fit and model complexity.
+
+- After selecting the best model above we now compare this model to the various models below that have interactions added.
+
+```{r}
+absent_model_interact1 <- lm(Chronically.Absent ~ Poverty * English.Language.Learners * Students.with.Disabilities, data = joined_data)
+
+absent_model_interact2 <- lm(Chronically.Absent ~ Poverty * English.Language.Learners + Students.with.Disabilities, data = joined_data)
+
+absent_model_interact3 <- lm(Chronically.Absent ~ Poverty + English.Language.Learners * Students.with.Disabilities, data = joined_data)
+```
+
+# Compare our best additive model to various interaction models
+
+- We then compare the various interaction models and our best additive model, absent_model_3var, to each other using the nested F-test again. Note that the additive model, absent_model_3var (reduced model), is nested within the interaction model and that absent_model_interact1 is the full model.
+
+```{r}
+anova(absent_model_3var, absent_model_interact3)
+anova(absent_model_3var, absent_model_interact2)
+anova(absent_model_3var, absent_model_interact1)
+
+```
+
+
+- The results indicate that the absent_model_3var, which is the reduced model, is still the best balance of goodness of fit and model complexity, because even though absent_model_interact3 and absent_model_interact1 show evidence that there is an interaction due to the p-values being less than 0.05 the difference in RSS values is extremely small. Therefore, this interaction has little practical impact on explaining absenteeism. This leads us to believe that the interactions are NOT a necessary component of the model.
+
+
+# Show a scatterplot matrix to show all of the pairs of variables
+
+```{r}
+data_minimal <- joined_data %>% 
+  select(Chronically.Absent,Poverty, English.Language.Learners, Students.with.Disabilities)
+
+ggpairs(data_minimal)
+```
+
+# Check assumptions - DO NOT KNOW IF THIS IS NEEDED OR REALLY POSSIBLE YET!
+
+```{r}
+# linearity
+absent_model_3var_linearity_check <- check_model(absent_model_3var, check="linearity",
+                              panel=FALSE
+                              )
+plot(absent_model_3var_linearity_check, data=joined_data)
+```
+
+<!-- Note: Bad normality and homogeneity deal with the p-value (and null hypothesis) -->
+
+```{r}
+# normality
+absent_model_3var_normality_check <- check_model(absent_model_3var, check="qq",
+                              panel=FALSE
+                              )
+plot(absent_model_3var_normality_check, data=joined_data)
+```
+
+```{r}
+# homoegeneity / normality
+absent_model_3var_homoegeneity_check <- check_model(absent_model_3var, check="homogeneity",
+                              panel=FALSE
+                              )
+plot(absent_model_3var_homoegeneity_check, data=joined_data)
+```
 
