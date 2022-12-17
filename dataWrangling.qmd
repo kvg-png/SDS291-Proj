@@ -157,10 +157,8 @@ anova(absent_model_3var, absent_model_interact1)
 ```
 
 
-- The results indicate that the absent_model_3var, which is the reduced model, is still the best balance of goodness of fit and model complexity, because even though absent_model_interact3 and absent_model_interact1 show evidence that there is an interaction due to the p-values being less than 0.05 the difference in RSS values is extremely small. Therefore, this interaction has little practical impact on explaining absenteeism. This leads us to believe that the interactions are NOT a necessary component of the model.
+- The results indicate that the absent_model_3var, which is the reduced model, is still the best balance of goodness of fit and model complexity, because even though absent_model_interact3 and absent_model_interact1 show evidence that there is an interaction due to the p-values being less than 0.05 the difference in RSS values is extremely small. This shows us that even though there is a statistically significant change when applying interaction to the model, however, due to the low  RSS value there is no practical change for the estimated rate of absenteeism. This leads us to believe that the interactions are NOT a necessary component of the model.
 
-
-There is a statistically significant change when applying interaction to the model, however, due to the low  RSS value there is no practical change for the estimated rate of absenteeism.
 
 
 # Show a scatterplot matrix to show all of the pairs of variables
@@ -207,7 +205,7 @@ plot(absent_model_3var_homoegeneity_check, data=joined_data)
 
 Rather than omit valid observations and potentially bias our coefficients we chose to fit and interpret the model on the original scale regardless of the normality and equal variance violations. Therefore there is that to consider when reviewing our results. 
 
-Still, note that T tests on the coefficients of regression models are generally robust to the violations of normality and equal variance. What we care about here is, is the sampling distribution of the T statistic actually a T distribution, or does it look like some other kind of distribution? It would take an incredibly large violation of normality to get the sampling distribution and give it a different shape. A violation like ours, therefore, would not dramatically change the shape of the T-distribution.
+Still, note that T tests on the coefficients of regression models are generally robust to the violations of normality and equal variance. What we care about here is, is the sampling distribution of the T statistic actually a T distribution, or does it look like some other kind of distribution? Since would take an incredibly large violation of normality to get the sampling distribution and give it a different shape, a violation like ours would not dramatically change the shape of the T-distribution.
 
 
 ```{r}
