@@ -1,6 +1,14 @@
+---
+title: "The Most At-Risk Populations for Chronic Absenteeism in NYC Public Schools"
+author: "Anaan Choudhury, Karen Galvan and Naylynn Tañón Reyes"
+format:
+  html:
+    self-contained: true
+---
 
 ```{r}
 library(tidyverse)
+library(dplyr)
 library(Stat2Data)
 library(performance)
 library(GGally)
@@ -21,23 +29,13 @@ data2 <- read.csv("demographicData.csv") %>%
 
 ```{r}
 joined_data <- data %>%
-  full_join(data2, by="DBN", suffix=c("",".y")) %>%
-  select(-ends_with(".y"))
 ```
 
-
-#Binary Poverty Level Variable
-```{r}
-cat <- joined_data %>% 
-  mutate(Poverty = case_when(X..Poverty.1 == "Above 95%" ~ "Above 95%",
-                             X..Poverty.1 != "Above 95%" ~ "Below 95%"))
-```
 
 ```{r}
-joined_data$X..Chronically.Absent.1 <- as.numeric(as.character(joined_data$X..Chronically.Absent.1))
-
+full_join(data2, by="DBN", suffix=c("",".y")) %>%
+  dplyr::select(-ends_with(".y"))
 ```
-
 
 ```{r}
 # remove all rows that have any N/A values from the new data frames
@@ -100,7 +98,7 @@ summary(absent_model)$coefficients
 
 # Adding more coefficients
 
-- First I want to report the regression table using all of the numerical explanatory variables. Then I will remove any variables that have a p-value greater than 0.05.
+- First we want to report the regression table using all of the numerical explanatory variables. Then we will remove any variables that have a p-value greater than 0.05.
 
 ```{r}
 absent_model2 <- lm(Chronically.Absent ~ Poverty + English.Language.Learners + Students.with.Disabilities, data = joined_data)
@@ -162,6 +160,9 @@ anova(absent_model_3var, absent_model_interact1)
 - The results indicate that the absent_model_3var, which is the reduced model, is still the best balance of goodness of fit and model complexity, because even though absent_model_interact3 and absent_model_interact1 show evidence that there is an interaction due to the p-values being less than 0.05 the difference in RSS values is extremely small. Therefore, this interaction has little practical impact on explaining absenteeism. This leads us to believe that the interactions are NOT a necessary component of the model.
 
 
+There is a statistically significant change when applying interaction to the model, however, due to the low  RSS value there is no practical change for the estimated rate of absenteeism.
+
+
 # Show a scatterplot matrix to show all of the pairs of variables
 
 ```{r}
@@ -171,7 +172,10 @@ data_minimal <- joined_data %>%
 ggpairs(data_minimal)
 ```
 
-# Check assumptions - DO NOT KNOW IF THIS IS NEEDED OR REALLY POSSIBLE YET!
+# Check assumptions 
+
+- When first checking assumptions, our model did not pass the tests for normality and equal variance.
+
 
 ```{r}
 # linearity
@@ -181,7 +185,6 @@ absent_model_3var_linearity_check <- check_model(absent_model_3var, check="linea
 plot(absent_model_3var_linearity_check, data=joined_data)
 ```
 
-<!-- Note: Bad normality and homogeneity deal with the p-value (and null hypothesis) -->
 
 ```{r}
 # normality
@@ -199,3 +202,42 @@ absent_model_3var_homoegeneity_check <- check_model(absent_model_3var, check="ho
 plot(absent_model_3var_homoegeneity_check, data=joined_data)
 ```
 
+
+- In order to stabilize the variance we applied log to the outcome variable. However, because several schools had zero percent absenteeism and zero cannot be converted to the logarithmic scale we could not apply log transformation. 
+
+Rather than omit valid observations and potentially bias our coefficients we chose to fit and interpret the model on the original scale regardless of the normality and equal variance violations. Therefore there is that to consider when reviewing our results. 
+
+Still, note that T tests on the coefficients of regression models are generally robust to the violations of normality and equal variance. What we care about here is, is the sampling distribution of the T statistic actually a T distribution, or does it look like some other kind of distribution? It would take an incredibly large violation of normality to get the sampling distribution and give it a different shape. A violation like ours, therefore, would not dramatically change the shape of the T-distribution.
+
+
+```{r}
+log_absent_model_3var <- lm(log(Chronically.Absent) ~ Poverty + English.Language.Learners + Students.with.Disabilities, data = joined_data)
+```
+
+
+#log transform outcome variable
+
+```{r}
+# linearity
+log_absent_model_3var_linearity_check <- check_model(log_absent_model_3var, check="linearity",
+                              panel=FALSE
+                              )
+plot(log_absent_model_3var_linearity_check, data=joined_data)
+```
+
+
+```{r}
+# normality
+log_absent_model_3var_normality_check <- check_model(log_absent_model_3var, check="qq",
+                              panel=FALSE
+                              )
+plot(log_absent_model_3var_normality_check, data=joined_data)
+```
+
+```{r}
+# homoegeneity / normality
+log_absent_model_3var_homoegeneity_check <- check_model(log_absent_model_3var, check="homogeneity",
+                              panel=FALSE
+                              )
+plot(log_absent_model_3var_homoegeneity_check, data=joined_data)
+```
