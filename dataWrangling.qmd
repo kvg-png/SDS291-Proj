@@ -165,7 +165,7 @@ anova(absent_model_3var, absent_model_interact1)
 
 ```{r}
 data_minimal <- joined_data %>% 
-  select(Chronically.Absent,Poverty, English.Language.Learners, Students.with.Disabilities)
+  dplyr::select(Chronically.Absent,Poverty, English.Language.Learners, Students.with.Disabilities)
 
 ggpairs(data_minimal)
 ```

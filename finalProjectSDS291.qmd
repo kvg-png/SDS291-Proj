@@ -1,0 +1,359 @@
+---
+title: "The Most At-Risk Populations for Chronic Absenteeism in NYC Public Schools"
+author: "Anaan Choudhury, Karen Galvan and Naylynn Tañón Reyes"
+format:
+  html:
+    self-contained: true
+#bibliography: references.bib
+
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(Stat2Data)
+library(performance)
+library(GGally)
+library(car)
+```
+
+# Introduction 
+
+  Over the long term, chronic absenteeism is correlated to increased rates of high school dropout, adverse health outcomes and poverty in adulthood, and an increased likelihood of interacting with the criminal justice system. In New York City, chronic absenteeism is defined as missing 18 or more days of school. As reported in April of the 2021-22 school year, city data revealed that 37% of New York City students were falling Chronically Absent. Because missing class instruction severely impacts a student’s academic performance1, we hope to investigate the factors of identity that impact chronic absenteeism in students to better predict which populations are most at risk. By identifying factors that contribute the most to absenteeism, public schools can begin to identify resolutions and more effectively allocate funding and resources to support students. For example, this research can aid funding for specialized counselors who aid students in getting back into school if they’ve been absent for long periods of time and stay in contact with them to not be overwhelmed by the workload after their return. This is especially important for students below the poverty line to support their learning and support social mobility (change in a person's socio-economic situation). 
+
+  By using the NYC public school system as a sample for the United States public school system, we will answer the question “What variables drive chronic absenteeism in NYC public schools?”. We will be investigating whether certain independent variables impact higher rates of chronic absenteeism, which will include demographics like ethnicity, gender, non-native English speakers, poverty levels, disability status, and finally school information, such as the average student-to-teacher ratios. We hope to identify risk factors that might drive chronic absenteeism in NYC public schools by investigating data at the level of individual schools. 
+
+  We hypothesize that there is a positive correlation between poverty and absenteeism rates in students in the NYC public school system. In general, we suppose that all marginalized students have higher rates of absenteeism in the NYC public school system due to the lack of planning for equity.
+
+# Methods
+
+  We used the data sets provided by NYC Open Data, which is free public data published by New York City agencies and other partners. Specifically, we used the “2016-17 - 2020-21 School End-of-Year Attendance and Chronic Absenteeism Data” and the “NYC Open Data - 2017-18 - 2021-22 Demographic Snapshot”, which we joined by “DBN”, or the district borough number, which uniquely identifies a school in the five borough districts. The former tells us about the total number of chronically absent students for a given school or “DBN”, along with the collective number of days they were absent, and the number and percentage of chronically absent students. The Demographic Snapshot data, on the other hand, provides information on students at the school-wide level, along with representative information about the number and percentages of their grades, sex, ethnicity/race, disability, the status of English language learners, and poverty levels of students. All investigations were conducted through the Board of Education on the school level, rather than on individual students. 
+
+```{r}
+#Uploading dataframes and combining them by the "DBN" variable
+
+data <- read.csv("absenteeismData.csv") %>% 
+  filter(Grade == "All Grades" & Year =='2020-21')
+
+data2 <- read.csv("demographicData.csv") %>% 
+  filter(Year =='2020-21')
+
+```
+
+  The variables used in our analysis include percentages of chronically absent students, poverty level, disability status, and students who are English language learners. All of these are expressed as percentages of students out of the total student bodies at individual New York City public schools (including grades Kindergarten through 12th grade). 
+
+  We specifically chose the variables of sex, ethnicity/race, disability, the status of English language learners, and poverty levels of students because of the repeated institutional discrimination against these marginalized groups in the United States throughout history. By looking at data about opportunities for social mobility, it is evident that race plays a large factor in the future income of young children even if they grow up in the same neighborhoods. Additionally, because of systemic injustices to people with disabilities and non-native English speakers, it was clear to us that these would impact a student’s confidence and participation in school. Poverty levels were vital to look at due to the fact that the students with financial difficulties would likely face stress at home and have fewer resources at home to complete homework, study, or engage in activities that help equip them for success during the school day. 
+
+  Next, we removed all rows with N/As from new data frames to only have consistent, clean data. Percentage signs were removed from columns in order to leave integers in their place for easier model fittings. The Poverty and Chronically Absent columns then had their variable type converted from “char” to “num” in order to do calculations and were converted to the same written percentage format for consistency. 
+
+```{r}
+
+#remove any duplicate columns
+joined_data <- full_join(data, 
+                         data2, 
+                         by="DBN", 
+                         suffix=c("",".y")) %>%
+  dplyr::select(-ends_with(".y"))
+
+# remove all rows that have any N/A values from the new data frames
+joined_data <- na.omit(joined_data)
+
+# =====Modifying joined dataset======
+
+# rename variables of the columns we are interested in for our models
+joined_data <- joined_data %>% 
+  rename("Chronically.Absent" = "X..Chronically.Absent.1",
+         "Poverty" = "X..Poverty.1",
+         "English.Language.Learners" = "X..English.Language.Learners.1",
+          "Students.with.Disabilities" = "X..Students.with.Disabilities.1")
+
+# rename every row value that says 'Above 95%' <- '95'
+joined_data$Poverty[joined_data$Poverty == 'Above 95%'] <- '95'
+
+# replace the % sign from every row so we are left with just a number
+joined_data$Poverty <- gsub("%", "", joined_data$Poverty)
+
+# change the data type from char to num for two columns
+joined_data$Poverty = as.numeric(as.character(joined_data$Poverty))
+joined_data$Chronically.Absent = as.numeric(as.character(joined_data$Chronically.Absent))
+
+# change 'Chronically.Absent' and 'Poverty' to the same percentage format (0.50 vs 50)
+# divide columns by 100 and replace values
+joined_data <- joined_data %>% 
+   mutate(Poverty = Poverty / 100) %>% 
+   mutate(Chronically.Absent = Chronically.Absent / 100)
+
+```
+
+  To begin our data exploration, we created a scatterplot with a regression line of the percentage of chronically absent students against the percentage of students below the poverty line to search for a relationship between the two variables. 
+
+````{r}
+
+#Initial data exploration
+
+ggplot(data = joined_data, mapping = aes(x = Poverty, y = Chronically.Absent)) +
+  geom_point() +
+  geom_smooth(method = lm, se=FALSE, formula = y~x) +
+  labs(title = "Students Living in Poverty vs Students Chronically Absent", 
+       subtitle = "In NYC schools", 
+       x ="Poverty (%)", 
+       y ="Chronically Absent (%)")
+```
+
+Next, we reported the regression table to interpret the coefficients and p-value of the regression line. A regression table was created with all of the explanatory variables to check the p-values and remove those with a p-value greater than 0.05.
+
+```{r}
+absent_model_1var <- lm(Chronically.Absent ~ Poverty, data = joined_data)
+summary(absent_model_1var)$coefficients
+```
+
+Because we want to explore the relationships between a school’s reported chronic absenteeism and aforementioned variables like percentage of students who are English Language Learners or students with disabilities, a new regression table was created with additional explanatory variables to check the p-values and remove those with a p-value greater than 0.05. 
+
+```{r}
+# Adding more coefficients
+
+absent_model_3var <- lm(Chronically.Absent ~ Poverty + 
+                                        English.Language.Learners + 
+                                        Students.with.Disabilities, 
+                                        data = joined_data)
+summary(absent_model_3var)$coefficients
+```
+
+A check for multicollinearity was performed next to investigate whether certain variables were more strongly correlated with some combination of the other explanatory variables in the model to detect true relationships. This was tested by calculating the variance inflation factor (vif) and aiming to remove variables > 10 since they reflect weak correlations. 
+
+```{r}
+vif(absent_model_3var)
+```
+
+Several models were created afterward by removing variables (reducing the complexity) in order to later compare the models. By using the anova() function in R, we were able to calculate nested F-tests to compare the goodness of fit between each additive model. 
+
+```{r}
+absent_model_3var <- lm(Chronically.Absent ~ Poverty + 
+                                            English.Language.Learners + 
+                                            Students.with.Disabilities, 
+                                            data = joined_data)
+absent_model_2var <- lm(Chronically.Absent ~ Poverty + 
+                                             English.Language.Learners, 
+                                             data = joined_data)
+
+anova(absent_model_2var, absent_model_3var)
+
+```
+
+
+By using the results of the tests to search for the best model with the best balance of goodness of fit and model complexity, we compared it to the new models with interactions added between the variables. Then the best additive model was compared to each of the various interaction models using the nested F-test again. 
+
+```{r}
+absent_model_interact1 <- lm(Chronically.Absent ~ Poverty * 
+                                                  English.Language.Learners * 
+                                                  Students.with.Disabilities, 
+                                                  data = joined_data)
+
+absent_model_interact2 <- lm(Chronically.Absent ~ Poverty * 
+                                                  English.Language.Learners + 
+                                                  Students.with.Disabilities, 
+                           data = joined_data)
+
+absent_model_interact3 <- lm(Chronically.Absent ~ Poverty + 
+                                                  English.Language.Learners * 
+                                                  Students.with.Disabilities, 
+                            data = joined_data)
+```
+
+
+Eliminating models with p-values less than 0.05 (a baseline alpha value to test statistical significance) and small differences in RSS (residual sum of squares) values allowed us to narrow down our pick for our best, least complex model again. These ANOVA functions helped us check whether additive models and interaction models had a significant effect on explaining chronic absenteeism aiming for only the necessary components for our best, final model. 
+
+```{r}
+anova(absent_model_3var, absent_model_interact3)
+anova(absent_model_3var, absent_model_interact2)
+anova(absent_model_3var, absent_model_interact1)
+
+```
+
+The results indicate that the absent_model_3var, which is the reduced model, is still the best balance of goodness of fit and model complexity, because even though absent_model_interact3 and absent_model_interact1 show evidence that there is an interaction due to the p-values being less than 0.05 the difference in RSS values is extremely small. This shows us that even though there is a statistically significant change when applying interaction to the model, however, due to the small difference in  RSS value between models, there is no practical change for the estimated rate of absenteeism. This leads us to believe that the interactions are not a necessary component of the model. 
+
+
+A final scatterplot matrix visualization was created reflecting all of the models made in our investigation for the best model to show the relationships between our explanatory variables and chronic absenteeism in schools. This was done by creating a new, minimalistic model with only our explanatory variables as columns and chronic absenteeism and omitting all other variables. The ggpairs() function was used to visualize a matrix of plots with a given data set.
+
+```{r}
+data_minimal <- joined_data %>% 
+  select(Chronically.Absent,Poverty, 
+         English.Language.Learners, 
+         Students.with.Disabilities)
+
+ggpairs(data_minimal)
+```
+
+  When first checking assumptions, our model did not pass the tests for normality and equal variance. 
+  
+```{r}
+# linearity
+absent_model_3var_linearity_check <- check_model(absent_model_3var, 
+                                                 check="linearity",
+                                                 panel=FALSE
+                                                 )
+```
+
+
+```{r}
+# normality
+absent_model_3var_normality_check <- check_model(absent_model_3var, 
+                                                 check="qq",
+                                                 panel=FALSE
+                                                  )
+```
+
+```{r}
+# homoegeneity / normality
+absent_model_3var_homoegeneity_check <- check_model(absent_model_3var, 
+                                                    check="homogeneity",
+                                                    panel=FALSE
+                                                    )
+```
+  
+  In order to stabilize the variance we applied log to the outcome variable. However, because several schools had zero percent absenteeism and zero cannot be converted to the logarithmic scale we could not apply log transformation. Rather than omit valid observations and potentially bias the coefficients we chose to fit and interpret the model on the original scale regardless of the normality and equal variance violations. Therefore, there is something to consider when reviewing our results. Still, note that T tests on the coefficients of regression models are generally robust to the violations of normality and equal variance. What we care about here is, is the sampling distribution of the T statistic actually a T distribution, or does it look like some other kind of distribution. 
+    
+  If a recreation of this investigation were to be done without omitting cells in the joint dataframe labeled N/A (specifically skipping the “joined_data <- na.omit(joined_data” action), the number for the difference in the rows would change. 
+
+
+
+```{r}
+#log_absent_model_3var <- lm(log(Chronically.Absent) ~ Poverty + English.Language.Learners + Students.with.Disabilities, data = joined_data)
+```
+
+
+Log transform outcome variable -
+
+```{r}
+# linearity
+# 
+# log_absent_model_3var_linearity_check <- check_model(log_absent_model_3var, check="linearity",
+#                               panel=FALSE
+#                               )
+# plot(log_absent_model_3var_linearity_check, data=joined_data)
+```
+
+
+```{r}
+# normality
+# log_absent_model_3var_normality_check <- check_model(log_absent_model_3var, check="qq",
+#                               panel=FALSE
+#                               )
+# plot(log_absent_model_3var_normality_check, data=joined_data)
+```
+
+```{r}
+# homoegeneity / normality
+# log_absent_model_3var_homoegeneity_check <- check_model(log_absent_model_3var, check="homogeneity",
+#                               panel=FALSE
+#                               )
+# plot(log_absent_model_3var_homoegeneity_check, data=joined_data)
+```
+
+# Results 
+
+We conclude that there is a significant effect on chronic absenteeism if the student has a disability, is an English language learner, and is living in poverty. These three variables create the best additive model to explain chronic absenteeism in students attending NYC public schools. Because the additive model “absent_model_3var” has the smallest RSS value we select this to explain the relationship between the 3 explanatory variables and chronic absenteeism in NYC public schools. 
+
+
+Figure 1: Scatterplot of Students Living in Poverty vs Students Chronically Absent
+
+````{r}
+#Figure 1
+
+ggplot(data = joined_data, mapping = aes(x = Poverty, y = Chronically.Absent)) +
+  geom_point() +
+  geom_smooth(method = lm, se=FALSE, formula = y~x) +
+  labs(title = "Students Living in Poverty vs Students Chronically Absent", 
+       subtitle = "In NYC schools", 
+       x ="Poverty (%)", 
+       y ="Chronically Absent (%)")
+```
+
+Figure 1 above depicts a clear positive, linear relationship between our variables: the percentage of chronically absent students of the total student body at a particular school, the percentage of students living in poverty of the total student body at a particular school. There is a strong correlation between the two variables. 
+
+```{r}
+absent_model <- lm(Chronically.Absent ~ Poverty, data = joined_data)
+summary(absent_model)$coefficients
+```
+
+
+These coefficients represent the unique effect of one explanatory variable on the outcome,
+after taking into account the effect of the other explanatory variables
+
+**Intercept:** The predicted reported percentage of 0 chronically absent student population for a school with 0 percent reported poverty rate is -0.0471.
+
+**Poverty:** For each additional 1 unit percent of students under the poverty line, the predicted reported percentage of chronically absent student population for a school increases by 0.476 on average.
+
+
+By adding more coefficients to this model, we are able to see that there is a clear positive, linear relationship between the variables of students with disabilities, English language learners, and students living in poverty in an additive model.
+
+```{r}
+# Adding more coefficients
+
+absent_model2 <- lm(Chronically.Absent ~ Poverty + 
+                                        English.Language.Learners + 
+                                        Students.with.Disabilities, 
+                                        data = joined_data)
+summary(absent_model2)$coefficients
+```
+
+
+**Intercept:** The predicted reported percentage of 0 chronically absent student population for a school with 0 percent reported poverty rate, 0 percent reported population of student English language learners, and 0 percent reported population of students with disabilities is -0.081.
+
+**Poverty:** For each additional 1 unit percent of students under the poverty line, the predicted reported percentage of chronically absent student population for a school increases by 0.453 on average.
+
+**English Language Learners:** For each 1 percent increase in the student population who are english language learners, the predicted reported percentage of chronically absent student population for a school decreases by -0.101 on average, regardless of simultaneous changes in the percentage of students with disabilities
+
+**Students with Disabilities** For each 1 percent increase in the student population who have disabilities, the predicted reported percentage of chronically absent student population for a school increases by 0.270 on average, regardless of simultaneous changes in the percentage of enlgish language learners.
+
+Figure 2: Scatterplot Matrix 
+
+Figure 2 is a visualization that maps out the variables in an additive manner. The matrix plots all of our variables against each other in individual plots, so the first column plots 'chronically absent' vs poverty, then 'english language learner' then 'student with disabilities'. It also plots a histogram of each variable and the correlation between variables.
+
+
+```{r}
+
+#Figure 2: Scatterplot Matrix 
+
+
+data_minimal <- joined_data %>% 
+  select(Chronically.Absent,Poverty, 
+         English.Language.Learners, 
+         Students.with.Disabilities)
+
+ggpairs(data_minimal)
+```
+
+The Fitted vs Residuals plot applies to both the linearity assumption as well as the equal variance/homogeneity assumption. When looking at this plot, we can see that the points do have a cone shape, therefore it does not pass the equal variance test. When looking for linearity we want to see that there is no relationship between the values and the residuals which we see in this plot the points are not randomly spread apart. Therefore, both assumptions are not met.
+
+Seeing the Normality plot, we can see the tail on the right of our plot does not fall along line so there is some skew, still this skew is not large enough for us to consider this assumption failed.
+
+Our model’s failure of the normality and equal variance check are not completely negative outcomes. As stated before, we specifically care about the shape of the sampling distribution of the T statistic. The violation Since it would take an incredibly large violation of normality to get the sampling distribution and give it a different shape, a violation like ours would not dramatically change the shape of the T-distribution.  
+
+# Data Analysis Appendix
+
+###Linearity Check
+
+```{r}
+
+plot(absent_model_3var_linearity_check, data=joined_data)
+```
+
+###Normality Check
+
+```{r}
+plot(absent_model_3var_normality_check, data=joined_data)
+
+```
+
+
+###Homogeneity Check
+```{r}
+plot(absent_model_3var_homoegeneity_check, data=joined_data)
+```
+
+
