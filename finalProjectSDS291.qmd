@@ -297,11 +297,11 @@ These coefficients represent the unique effect on one explanatory variable on th
 
 **Intercept:** The predicted reported percentage of 0 chronically absent student population for a school with 0 percent reported poverty rate, 0 percent reported population of student English language learners, and 0 percent reported population of students with disabilities is -0.081.
 
-**Poverty:** For each additional 1 unit percent of students under the poverty line, the predicted reported percentage of chronically absent student population for a school increases by 0.453 on average.
+**Poverty:** For each additional 1 unit percent of students under the poverty line, the predicted reported percentage of chronically absent student population for a school increases by 0.453 on average, regardless of simultaneous changes in the percentage of students with disabilities and the percentage of English language learning students.
 
-**English Language Learners:** For each 1 percent increase in the student population who are english language learners, the predicted reported percentage of chronically absent student population for a school decreases by -0.101 on average, regardless of simultaneous changes in the percentage of students with disabilities
+**English Language Learners:** For each 1 percent increase in the student population who are english language learners, the predicted reported percentage of chronically absent student population for a school decreases by -0.101 on average, regardless of simultaneous changes in the percentage of students with disabilities and percentage of students living under the poverty level.
 
-**Students with Disabilities** For each 1 percent increase in the student population who have disabilities, the predicted reported percentage of chronically absent student population for a school increases by 0.270 on average, regardless of simultaneous changes in the percentage of enlgish language learners.
+**Students with Disabilities** For each 1 percent increase in the student population who have disabilities, the predicted reported percentage of chronically absent student population for a school increases by 0.270 on average, regardless of simultaneous changes in the percentage of enlgish language learners and percentage of students living under the poverty level.
 
 ###Figure 2: Scatterplot Matrix 
 
